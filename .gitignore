@@ -6,6 +6,8 @@ node_modules/
 .yarn/cache
 .pnpm-store/
 .venv/
+.venv311/
+.pydeps/
 venv/
 env/
 __pycache__/

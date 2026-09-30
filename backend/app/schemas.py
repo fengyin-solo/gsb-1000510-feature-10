@@ -19,6 +19,12 @@ class ActionResult(BaseModel):
     ok: bool
     message: str
     entry: dict[str, Any] | None = None
+    # 班次编录写入路径的回执：操作序号用于掉线续传，operation 为流水明细，
+    # sync 为审批/终孔后同源刷新的台账/待办快照，replayed 表示幂等重放未重复写入。
+    replayed: bool = Field(default=False)
+    last_seq: int | None = Field(default=None)
+    operation: dict[str, Any] | None = Field(default=None)
+    sync: dict[str, Any] | None = Field(default=None)
 
 
 class EntryPayload(BaseModel):
@@ -26,6 +32,8 @@ class EntryPayload(BaseModel):
 
     values: dict[str, Any] = Field(default_factory=dict)
     remark: str | None = None
+    # 幂等键：客户端掉线重发时带上，同一键只生效一次，其余为重放。
+    idem_key: str | None = None
 
 
 
