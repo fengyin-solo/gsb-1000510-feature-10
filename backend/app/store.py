@@ -14,9 +14,14 @@ class Store:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        # 内部表（台账、曲线、待办、终孔登记等）只参与业务读写，不进运营概览计数。
+        self._internal: set[str] = set()
+
+    def mark_internal(self, module: str) -> None:
+        self._internal.add(module)
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        return sorted(name for name in self._tables if name not in self._internal)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])

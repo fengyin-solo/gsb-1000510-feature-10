@@ -10,9 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ROUTERS
+from app.services.drilling_log import service as drilling_log_service
 from app.store import store
 
 app = FastAPI(title="地质勘探数据管理平台", version="1.0.0")
+
+
+@app.on_event("startup")
+def _bootstrap_shift_catalog() -> None:
+    """从种子班次重建钻探台账、孔深曲线、班次待办与操作序号，保证只有一套口径。"""
+    drilling_log_service.bootstrap()
 
 app.add_middleware(
     CORSMiddleware,

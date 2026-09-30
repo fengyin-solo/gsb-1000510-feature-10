@@ -57,7 +57,7 @@ npm run dev
 | 化验数据 | `assay` | 化验结果 | 化验编号、样品编号、元素名称 |
 | 地质填图 | `mapping` | 填图单元 | 图幅编号、图幅名称、比例尺 |
 | 测绘控制 | `survey_point` | 控制点 | 点号、点类型、坐标X |
-| 钻探日志 | `drilling_log` | 钻探记录 | 日志编号、钻孔编号、钻进深度 |
+| 钻探日志（班次编录） | `drilling_log` | 班次日志 | 日志编号、钻孔编号、班次、深度起/深度止、上报基准、审批结论 |
 | 储量估算 | `reserve` | 矿体块段 | 块段编号、矿体名称、面积 |
 | 样品登记 | `sample_registry` | 送检样品 | 送检编号、样品名称、采样位置 |
 | 勘探设备 | `equipment` | 勘探仪器 | 仪器编号、仪器名称、型号规格 |
@@ -74,3 +74,23 @@ npm run dev
   `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+
+### 班次编录写入路径（钻探日志）
+
+班次日志只能经 `DrillingLogService` 这一条写入路径修改，派生数据全部由它同步，
+前端与其他接口只读：
+
+- 状态单向推进：`待填写 → 已填写 → 已审核`，没有回退；已审核锁定，
+  跳步提交必须带「原因」，原因随操作序号流水留痕。
+- 同钻孔班次按孔深区间 `[深度起, 深度止)` 单向推进，区间重叠返回 409，
+  首尾相接允许。
+- 审核通过即在同一把锁内 upsert 钻探台账（`/api/drilling_log/ledger`）、
+  重算孔深曲线（`/api/drilling_log/curve`）、清除班次待办
+  （`/api/drilling_log/todos`），`/summary` 可核对三处同步一致性。
+- 终孔深度经 `/api/drilling_log/final_depth` 登记：现场终孔确认优先于补充上报，
+  一旦有现场值，补充上报不能覆盖；台账/曲线的原始上报深度保留，
+  「生效深度」按现场值封顶并标记越界班次。
+- 每个钻孔维护独立操作序号（`/api/drilling_log/journal`）。写请求带
+  `expected_seq` 做乐观并发：同区间并发补录只放行一个，冲突方拿 409 和最新序号；
+  带 `operation_id` 的重发按原结果幂等返回（掉线续做不重复写入）。
+- 规则验证脚本：`python3 backend/verify_shift_rules.py`（需要 fastapi/httpx）。
